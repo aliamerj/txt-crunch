@@ -1,14 +1,14 @@
 const std = @import("std");
 const hn = @import("huffman_node.zig");
 
-const PQlt = std.PriorityQueue(hn.Huffman_node, void, lessThan);
+const PQlt = std.PriorityQueue(*hn.Huffman_node, void, lessThan);
 
 pub fn encoding(freq_table: *std.AutoHashMap(u8, usize), allocator: std.mem.Allocator) !void {
-    var tree = buildHuffmanTree(freq_table, allocator) catch unreachable;
-    printTree(&tree, 0, 'X');
+    const tree = buildHuffmanTree(freq_table, allocator) catch unreachable;
+    printTree(tree, 0, 'X');
 }
 
-fn buildHuffmanTree(freq_table: *std.AutoHashMap(u8, usize), allocator: std.mem.Allocator) !hn.Huffman_node {
+fn buildHuffmanTree(freq_table: *std.AutoHashMap(u8, usize), allocator: std.mem.Allocator) !*hn.Huffman_node {
     // Create a priority queue that stores Huffman_node
     var queue = PQlt.init(allocator, {});
     defer queue.deinit();
@@ -16,21 +16,21 @@ fn buildHuffmanTree(freq_table: *std.AutoHashMap(u8, usize), allocator: std.mem.
     var iterator = freq_table.iterator();
     while (iterator.next()) |entry| {
         const node = hn.nodeCreate(allocator, entry.key_ptr.*, entry.value_ptr.*) catch unreachable;
-        try queue.add(node.*);
+        try queue.add(node);
     }
 
     // Build the Huffman tree
     while (queue.count() > 1) {
-        var left = queue.remove();
-        var right = queue.remove();
+        const left = queue.remove();
+        const right = queue.remove();
 
-        const joined = hn.nodeJoin(allocator, &left, &right) catch unreachable;
-        try queue.add(joined.*);
+        const joined = hn.nodeJoin(allocator, left, right) catch unreachable;
+        try queue.add(joined);
     }
     return queue.remove();
 }
 
-fn lessThan(context: void, a: hn.Huffman_node, b: hn.Huffman_node) std.math.Order {
+fn lessThan(context: void, a: *hn.Huffman_node, b: *hn.Huffman_node) std.math.Order {
     _ = context;
     return std.math.order(a.frequency, b.frequency);
 }
@@ -91,18 +91,30 @@ test "buildHuffmanTree" {
     const root = buildHuffmanTree(&freq_table, allocator) catch unreachable;
 
     // Check if the root's frequency is correct
+
     try expect(root.frequency == 10); // root
 
-    try expect(root.left.?.frequency == 4); // i+ (e + m)
-    try expect(root.left.?.left.?.frequency == 2); // i
-    try expect(root.left.?.right.?.frequency == 2); // (e + m)
-    try expect(root.left.?.right.?.right.?.frequency == 1); // e
-    try expect(root.left.?.right.?.left.?.frequency == 1); // m
+    try expect(root.left.?.frequency == 4); // r e - l
 
-    try expect(root.right.?.frequency == 6); // a + (l + r)
-    try expect(root.right.?.left.?.frequency == 3); // a
-    try expect(root.right.?.right.?.frequency == 3); // (l + r)
-    try expect(root.right.?.right.?.right.?.frequency == 1); // r
-    try expect(root.right.?.right.?.left.?.frequency == 2); // l
+    try expect(root.left.?.left.?.frequency == 2); // r e
+    try expect(root.left.?.left.?.left.?.symbol == 'r');
+    try expect(root.left.?.left.?.left.?.frequency == 1);
+    try expect(root.left.?.left.?.right.?.symbol == 'e');
+    try expect(root.left.?.left.?.right.?.frequency == 1);
 
+    try expect(root.left.?.right.?.symbol == 'l');
+    try expect(root.left.?.right.?.frequency == 2);
+
+    try expect(root.right.?.frequency == 6); // a + (m + i)
+
+    try expect(root.right.?.left.?.symbol == 'a');
+    try expect(root.right.?.left.?.frequency == 3);
+
+    try expect(root.right.?.right.?.frequency == 3); // (m + i))
+
+    try expect(root.right.?.right.?.left.?.symbol == 'm');
+    try expect(root.right.?.right.?.left.?.frequency == 1);
+
+    try expect(root.right.?.right.?.right.?.symbol == 'i');
+    try expect(root.right.?.right.?.right.?.frequency == 2);
 }

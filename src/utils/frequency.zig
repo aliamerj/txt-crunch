@@ -12,8 +12,12 @@ pub fn calculateFrequency(line: []const u8, allocator: std.mem.Allocator) !std.h
 }
 
 test "calculate frequency" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
     const content = "4aaabbc r4";
-    const freq_table = try calculateFrequency(content);
+    const freq_table = try calculateFrequency(content, allocator);
 
     try std.testing.expect(freq_table.get('a') == 3);
     try std.testing.expect(freq_table.get('b') == 2);
