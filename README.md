@@ -10,7 +10,7 @@ This project is inspired by a coding challenge from [Coding Challenges](https://
 - Flexible Memory Management: Uses Zig's memory allocation strategies to manage resources efficiently.
 
 ## Usage
-To compress a text file, run the following command:
+- To compress a text file, run the following command:
 ```bash
 zig build run -- <file_path>
 ```
@@ -18,4 +18,8 @@ Example:
 
 ```bash
 zig build run -- example.txt
+```
+- To run all tests in one
+```bash
+make test
 ```
