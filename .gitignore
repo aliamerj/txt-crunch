@@ -1,2 +1,4 @@
 *.txt
+/zig-out/
 /zig-cache/
+

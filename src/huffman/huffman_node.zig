@@ -1,6 +1,8 @@
 const std = @import("std");
+
 const Allocator = std.mem.Allocator;
 const Order = std.math.Order;
+const PQlt = std.PriorityQueue(*Huffman_node, void, lessThan);
 
 pub const Huffman_node = struct {
     left: ?*Huffman_node,
@@ -25,6 +27,33 @@ pub fn nodeJoin(alloc: Allocator, left: *Huffman_node, right: *Huffman_node) !*H
     n.left = left;
     n.right = right;
     return n;
+}
+
+pub fn buildHuffmanTree(freq_table: *std.AutoHashMap(u8, usize), allocator: std.mem.Allocator) !*Huffman_node {
+    // Create a priority queue that stores Huffman_node
+    var queue = PQlt.init(allocator, {});
+    defer queue.deinit();
+
+    var iterator = freq_table.iterator();
+    while (iterator.next()) |entry| {
+        const node = nodeCreate(allocator, entry.key_ptr.*, entry.value_ptr.*) catch unreachable;
+        try queue.add(node);
+    }
+
+    // Build the Huffman tree
+    while (queue.count() > 1) {
+        const left = queue.remove();
+        const right = queue.remove();
+
+        const joined = nodeJoin(allocator, left, right) catch unreachable;
+        try queue.add(joined);
+    }
+    return queue.remove();
+}
+
+fn lessThan(context: void, a: *Huffman_node, b: *Huffman_node) std.math.Order {
+    _ = context;
+    return std.math.order(a.frequency, b.frequency);
 }
 
 const expect = std.testing.expect;
@@ -127,4 +156,69 @@ test "nodeJoin with larger tree" {
 
     try expect(root.right.?.right.?.right.?.right.?.symbol == 'e');
     try expect(root.right.?.right.?.right.?.right.?.frequency == 1);
+}
+
+test "buildHuffmanTree with single entry" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    var freq_table = std.AutoHashMap(u8, usize).init(allocator);
+    defer freq_table.deinit();
+
+    try freq_table.put('a', 5);
+
+    const root = buildHuffmanTree(&freq_table, allocator) catch unreachable;
+
+    // Check if the root's frequency is correct
+    try expect(root.frequency == 5);
+    try expect(root.symbol == 'a');
+    try expect(root.left == null);
+    try expect(root.right == null);
+}
+
+test "buildHuffmanTree" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    var freq_table = std.AutoHashMap(u8, usize).init(allocator);
+    defer freq_table.deinit();
+
+    try freq_table.put('m', 1);
+    try freq_table.put('e', 1);
+    try freq_table.put('r', 1);
+    try freq_table.put('i', 2);
+    try freq_table.put('l', 2);
+    try freq_table.put('a', 3);
+
+    const root = buildHuffmanTree(&freq_table, allocator) catch unreachable;
+
+    // Check if the root's frequency is correct
+
+    try expect(root.frequency == 10); // root
+
+    try expect(root.left.?.frequency == 4); // r e - l
+
+    try expect(root.left.?.left.?.frequency == 2); // r e
+    try expect(root.left.?.left.?.left.?.symbol == 'r');
+    try expect(root.left.?.left.?.left.?.frequency == 1);
+    try expect(root.left.?.left.?.right.?.symbol == 'e');
+    try expect(root.left.?.left.?.right.?.frequency == 1);
+
+    try expect(root.left.?.right.?.symbol == 'l');
+    try expect(root.left.?.right.?.frequency == 2);
+
+    try expect(root.right.?.frequency == 6); // a + (m + i)
+
+    try expect(root.right.?.left.?.symbol == 'a');
+    try expect(root.right.?.left.?.frequency == 3);
+
+    try expect(root.right.?.right.?.frequency == 3); // (m + i))
+
+    try expect(root.right.?.right.?.left.?.symbol == 'm');
+    try expect(root.right.?.right.?.left.?.frequency == 1);
+
+    try expect(root.right.?.right.?.right.?.symbol == 'i');
+    try expect(root.right.?.right.?.right.?.frequency == 2);
 }
