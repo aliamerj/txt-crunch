@@ -1,6 +1,6 @@
 const std = @import("std");
 const f = @import("utils/file.zig");
-const huffman = @import("huffman/encoding.zig");
+const huffman = @import("encoding.zig");
 
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -18,7 +18,7 @@ pub fn main() !void {
     };
 
     var content = f.FileContent.init(allocator, file_content);
+    try content.calculateFrequency();
 
-    var freq_table = try content.calculateFrequency();
-    try huffman.encoding(&freq_table, allocator);
+    try huffman.encoding(&content, allocator);
 }
